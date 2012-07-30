@@ -751,11 +751,35 @@ static void run_init_process(const char *init_filename)
 	kernel_execve(init_filename, argv_init, envp_init);
 }
 
+/* **************************** */
+_Bool key_dev_found;
+
+static void __init wait_for_key_dev(void)
+{
+        key_dev_found = 0;
+
+        /* wait for any asynchronous scanning to complete */
+        printk(KERN_INFO "Waiting for key device ...\n");
+        while (driver_probe_done() != 0 ||
+                        key_dev_found == 0)
+        {
+                msleep(100);
+        }
+        async_synchronize_full();
+        printk(KERN_INFO "Done waiting for key device ...\n");
+}
+/* **************************** */
+
 /* This is a non __init function. Force it to be noinline otherwise gcc
  * makes it inline to init() and it becomes part of init.text section
  */
 static noinline int init_post(void)
 {
+	/* **************************** */
+	async_synchronize_full(); /* This is to make the log files easier to read */
+	wait_for_key_dev(); /* This is what halts the boot process */
+	/* **************************** */
+
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
 	free_initmem();
